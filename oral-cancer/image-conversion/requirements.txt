@@ -1,2 +1,5 @@
 wsidicomizer
 openslide-python
+pydicom
+numpy
+Pillow
