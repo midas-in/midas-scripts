@@ -1,0 +1,17 @@
+{
+  "summary": {
+    "totalCases": 1,
+    "totalVisits": 1,
+    "validVisits": 1,
+    "invalidVisits": 0,
+    "totalErrors": 0
+  },
+  "details": {
+    "01_273_P": {
+      "VISIT_30-09-2024": {
+        "valid": true,
+        "errors": []
+      }
+    }
+  }
+}

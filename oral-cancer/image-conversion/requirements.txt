@@ -1,0 +1,2 @@
+wsidicomizer
+openslide-python
