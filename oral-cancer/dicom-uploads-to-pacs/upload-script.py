@@ -2,17 +2,38 @@ import os
 import requests
 from requests.auth import HTTPBasicAuth
 import uuid
+import logging
+from datetime import datetime
 
-# PACS server upload URL
+# =========================
+# CONFIGURATION
+# =========================
 pacs_upload_url = "https://staging.meningioma.midaspacs.in/dcm4chee-arc/aets/DCM4CHEE/rs/studies"
-# Path to the main data folder
-main_folder_path = "/Users/triveous/Dev/Scripts/updatePatientIdForDcm/AIIMS-Del/00129AIIMSD160422"
+main_folder_path = "***/path/to/input/dicom/folder***"
+
+# Logging setup
+log_dir = "***/path/to/log/directory***"
+log_file_path = os.path.join(log_dir, "upload_validation.log")
+success_file_path = os.path.join(log_dir, "success_uploads_batch.txt")
+failure_file_path = os.path.join(log_dir, "failure_uploads_batch.txt")
+
+# Setup logger
+logger = logging.getLogger("pacs_upload")
+logger.setLevel(logging.DEBUG)
+
+if not logger.handlers:
+    os.makedirs(log_dir, exist_ok=True)
+    fh = logging.FileHandler(log_file_path, mode="w", encoding="utf-8")
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
 def get_pacs_access_token():
     # Define the token URL and parameters
     pacs_token_url = "https://staging.meningioma.midaspacs.in/auth/realms/midas/protocol/openid-connect/token"
-    client_id = "pacs-rs"
-    client_secret = "dU22uVdEKvR87qeswXvpeRlnsIIBllzW"
+    client_id = "***CLIENT_ID***"
+    client_secret = "***CLIENT_SECRET***"
     grant_type = "client_credentials"
 
     # Prepare the data payload for the POST request
@@ -24,44 +45,59 @@ def get_pacs_access_token():
 
     # Make the POST request to fetch the token
     try:
-        response = requests.post(pacs_token_url, data=data)
-        response.raise_for_status()  # Check for HTTP errors
+        logger.info("Fetching PACS access token...")
+        response = requests.post(pacs_token_url, data=data, verify=False)
+        response.raise_for_status()
         token_data = response.json()
-        return token_data.get("access_token")
-    
+        token = token_data.get("access_token")
+        logger.info("✅ PACS access token obtained successfully")
+        return token
     except requests.exceptions.RequestException as e:
-        print("Error:", e)
+        logger.error(f"❌ Failed to retrieve access token: {e}")
         return None
 
-
-# Path to the log directory and files
-log_dir = "/Users/triveous/Dev/Scripts/upload-scripts/logs"
-success_file_path = os.path.join(log_dir, "success_uploads_batch7.txt")
-failure_file_path = os.path.join(log_dir, "failure_uploads_batch7.txt")
-
-# Function to read the contents of a log file and return them as a set
 def read_log_file(file_path):
+    """Read log file contents as a set."""
     if os.path.exists(file_path):
-        with open(file_path, 'r') as log_file:
-            return set(log_file.read().splitlines())
+        try:
+            with open(file_path, 'r', encoding='utf-8') as log_file:
+                return set(log_file.read().splitlines())
+        except Exception as e:
+            logger.error(f"Error reading log file {file_path}: {e}")
     return set()
 
-# Function to write the updated set of paths to the log file
 def write_log_file(file_path, data_set):
-    with open(file_path, 'w') as log_file:
-        log_file.write("\n".join(sorted(data_set)))
+    """Write set contents back to log file."""
+    try:
+        with open(file_path, 'w', encoding='utf-8') as log_file:
+            log_file.write("\n".join(sorted(data_set)))
+        logger.debug(f"Updated log file: {file_path} with {len(data_set)} entries")
+    except Exception as e:
+        logger.error(f"Error writing log file {file_path}: {e}")
+
+def collect_input_dicom_files(folder_path):
+    """Recursively collect all DICOM files from input folder."""
+    dicom_files = []
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.lower().endswith(".dcm"):
+                file_path = os.path.join(root, file)
+                dicom_files.append(file_path)
+    return dicom_files
 
 
 boundary = f"----WebKitFormBoundary{uuid.uuid4().hex}"
 
 def upload_dicom(file_path):
+    """Upload single DICOM file to PACS."""
     try:
         # Retrieve the access token
         token = get_pacs_access_token()
         if not token:
-            print("Failed to retrieve access token.")
+            logger.error(f"Failed to get token for {file_path}")
             return False
-
+        
+        logger.debug(f"Starting upload for: {file_path}")
         # Open the DICOM file in binary mode
         with open(file_path, 'rb') as dicom_file:
             # Manually set the content type with boundary
@@ -81,70 +117,113 @@ def upload_dicom(file_path):
             
             response = requests.post(pacs_upload_url, headers=headers, data=body.encode('latin1'), verify=False)
 
+            logger.debug(f"Upload response status for {file_path}: {response.status_code}")
             # Check if the upload was successful
-            if response.status_code == 200:
-                print(f"Uploaded successfully for {file_path}.")
+            if response.status_code in [200, 201]:
+                logger.info(f"✅ Uploaded successfully: {file_path}")
                 return True
             else:
-                print(f"Upload failed for {file_path}. Status code: {response.status_code}")
-                print("Response content:", response.text)  # Print response text for more details
+                logger.error(f"❌ Upload failed for {file_path}. Status: {response.status_code}")
+                logger.error(f"Response: {response.text[:500]}...")  # First 500 chars
                 return False
     except Exception as e:
-        print(f"Error uploading {file_path}: {e}")
+        logger.error(f"❌ Exception uploading {file_path}: {str(e)}")
         return False
-
 
 # Ensure log directory exists
 os.makedirs(log_dir, exist_ok=True)
 
 # Function to log the result of the upload
 def log_result(file_path, is_successful, success_set, failure_set):
+    """Log upload result to success/failure sets."""
     if is_successful:
-        # Add to success set and remove from failure set if present
         success_set.add(file_path)
         failure_set.discard(file_path)
+        logger.debug(f"Added to success: {os.path.basename(file_path)}")
     else:
-        # Add to failure set if not successful
         failure_set.add(file_path)
+        logger.debug(f"Added to failure: {os.path.basename(file_path)}")
 
 # Function to process each folder and upload DICOM files
 def process_folder(folder_path, success_set, failure_set):
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            if file.endswith(".dcm"):
-                file_path = os.path.join(root, file)
-                
-                # Skip files that are already uploaded successfully
-                if file_path in success_set:
-                    print(f"Skipping already uploaded file: {file_path}")
-                    continue
+    """Process folder and upload DICOM files with validation."""
+    logger.info(f"Scanning input folder: {folder_path}")
+    # Collect all input DICOM files first
+    input_dicom_files = collect_input_dicom_files(folder_path)
+    logger.info(f"Found {len(input_dicom_files)} DICOM files in input folder")
+    
+    if not input_dicom_files:
+        logger.warning("No DICOM files found in input folder")
+        return
+    
+    processed_count = 0
+    skipped_count = 0
+    failed_uploads = []
 
-                print(f"Uploading file: {file_path}")
-                is_successful = upload_dicom(file_path)
-                
-                # Log the result and update success/failure sets
-                log_result(file_path, is_successful, success_set, failure_set)
+
+    for file_path in input_dicom_files:
+        # Skip already successfully uploaded files
+        if file_path in success_set:
+            logger.info(f"⏭️  Skipping already uploaded: {os.path.basename(file_path)}")
+            skipped_count += 1
+            continue
+
+        processed_count += 1
+        logger.info(f"📤 Uploading ({processed_count}/{len(input_dicom_files)}): {os.path.basename(file_path)}")
+        
+        is_successful = upload_dicom(file_path)
+        log_result(file_path, is_successful, success_set, failure_set)
+        
+        if not is_successful:
+            failed_uploads.append(file_path)
+    
+    # Final validation summary
+    logger.info("="*80)
+    logger.info("📊 UPLOAD VALIDATION SUMMARY")
+    logger.info(f"Total input DICOM files: {len(input_dicom_files)}")
+    logger.info(f"Skipped (already uploaded): {skipped_count}")
+    logger.info(f"Processed: {processed_count}")
+    logger.info(f"Successfully uploaded: {len(success_set)}")
+    logger.info(f"Failed uploads: {len(failed_uploads)}")
+    
+    if failed_uploads:
+        logger.error("❌ FAILED FILES:")
+        for failed_file in failed_uploads:
+            logger.error(f"  {os.path.basename(failed_file)}")
+    
+    logger.info("="*80)
 
 # Main process
 def main():
-    if os.path.exists(main_folder_path):
-        print(f"Starting upload process for folder: {main_folder_path}")
+    """Main execution with full validation."""
+    logger.info("🚀 Starting PACS DICOM upload with validation")
+    logger.info(f"Input folder: {main_folder_path}")
+    
+    if not os.path.exists(main_folder_path):
+        logger.error(f"❌ Input folder does not exist: {main_folder_path}")
+        return
 
-        # Load success and failure logs
+    try:
+        # Load existing success/failure logs
         success_set = read_log_file(success_file_path)
         failure_set = read_log_file(failure_file_path)
-
-        # Process the folder and upload DICOM files
+        logger.info(f"Loaded {len(success_set)} success records, {len(failure_set)} failure records")
+        
+        # Process with validation
         process_folder(main_folder_path, success_set, failure_set)
-
-        # Write back updated success and failure logs
+        
+        # Save final logs
         write_log_file(success_file_path, success_set)
         write_log_file(failure_file_path, failure_set)
-
-        print("Upload process completed.")
-    else:
-        print(f"Folder does not exist: {main_folder_path}")
+        
+        logger.info("✅ Upload process completed with validation")
+        logger.info(f"Final logs saved to:")
+        logger.info(f"  Success: {success_file_path}")
+        logger.info(f"  Failures: {failure_file_path}")
+        logger.info(f"  Detailed log: {log_file_path}")
+        
+    except Exception as e:
+        logger.error(f"💥 Unexpected error in main: {str(e)}", exc_info=True)
 
 if __name__ == "__main__":
     main()
-
