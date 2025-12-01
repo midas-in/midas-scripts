@@ -3,9 +3,21 @@ import os
 import shutil
 import logging
 
-# Set up logging
-log_file_path = '/logs/log.txt'
-logging.basicConfig(filename=log_file_path, level=logging.ERROR, format='%(asctime)s - %(message)s')
+# =========================
+# Logging setup
+# =========================
+log_file_path = r"F:\MIDAS SCRIPTS\midas-scripts\oral-cancer\image-compression\logs\logs.txt"
+
+logger = logging.getLogger("image_compression")
+logger.setLevel(logging.DEBUG)  # capture everything
+
+if not logger.handlers:
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
+    fh = logging.FileHandler(log_file_path, mode="w", encoding="utf-8")
+    fh.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
 
 def resize_image_fixed_dimensions(input_path, output_path, new_width, new_height, quality=90):
@@ -31,14 +43,15 @@ def resize_image_fixed_dimensions(input_path, output_path, new_width, new_height
             elif ext in ['tif', 'tiff']:
                 img.save(output_path, format='TIFF', compression="tiff_adobe_deflate")
 
-            logging.info(f"Processed {input_path} -> {output_path} ({resized_width}x{resized_height})")
+            logger.info(f"Processed {input_path} -> {output_path} ({resized_width}x{resized_height})")
 
     except Exception as e:
-        logging.error(f"Error processing {input_path}: {str(e)}")
+        logger.error(f"Error processing {input_path}: {str(e)}")
 
 
 def is_under_folder(path, target_folder_names):
     return any(folder in os.path.normpath(path).split(os.sep) for folder in target_folder_names)
+
 
 def process_images_in_structure(input_folder, output_folder, new_width, new_height, quality=90):
     for root, dirs, files in os.walk(input_folder):
@@ -47,11 +60,11 @@ def process_images_in_structure(input_folder, output_folder, new_width, new_heig
 
         try:
             if is_under_folder(root, ['GM', 'XC']):
-                logging.info(f"Compressing images in folder: {root}")
+                logger.info(f"Compressing images in folder: {root}")
                 os.makedirs(output_dir, exist_ok=True)
 
                 image_files = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff'))]
-                logging.info(f"Found {len(image_files)} images to compress in {root}")
+                logger.info(f"Found {len(image_files)} images to compress in {root}")
 
                 compressed_count = 0
                 for file_name in image_files:
@@ -61,18 +74,18 @@ def process_images_in_structure(input_folder, output_folder, new_width, new_heig
                     output_file_name = os.path.splitext(file_name)[0] + f".{new_ext}"
                     output_path = os.path.join(output_dir, output_file_name)
 
-                    logging.info(f"Processing image: {input_path}")
+                    logger.info(f"Processing image: {input_path}")
                     resize_image_fixed_dimensions(input_path, output_path, new_width, new_height, quality)
 
                     if os.path.exists(output_path):
                         compressed_count += 1
                     else:
-                        logging.error(f"Failed to create compressed file: {output_path}")
+                        logger.error(f"Failed to create compressed file: {output_path}")
 
-                logging.info(f"Compressed {compressed_count} images out of {len(image_files)} in {root}")
+                logger.info(f"Compressed {compressed_count} images out of {len(image_files)} in {root}")
 
             else:
-                logging.info(f"Copying folder: {root} to {output_dir}")
+                logger.info(f"Copying folder: {root} to {output_dir}")
                 if os.path.exists(output_dir):
                     shutil.rmtree(output_dir)
                 shutil.copytree(root, output_dir, dirs_exist_ok=True)
@@ -88,24 +101,23 @@ def process_images_in_structure(input_folder, output_folder, new_width, new_heig
                     for fname in filenames:
                         original_files.append(os.path.relpath(os.path.join(dirpath, fname), root))
 
-                # Check if all original files are copied
                 missing_files = set(original_files) - set(copied_files)
                 if missing_files:
-                    logging.error(f"Missing copied files in {output_dir}: {missing_files}")
+                    logger.error(f"Missing copied files in {output_dir}: {missing_files}")
                 else:
-                    logging.info(f"Successfully copied all {len(original_files)} files to {output_dir}")
+                    logger.info(f"Successfully copied all {len(original_files)} files to {output_dir}")
 
         except Exception as e:
-            logging.error(f"Error processing folder {root}: {str(e)}")
+            logger.error(f"Error processing folder {root}: {str(e)}")
 
 
-input_folder = '/Users/triveous/Dev/Scripts/conversions/dummy-data'
-output_folder = '/Users/triveous/Dev/Scripts/image-compression/output'
+if __name__ == "__main__":
+    input_folder = r"D:\MIDAS PROSPECTIVE\batch\batch1"
+    output_folder = r"F:\MIDAS SCRIPTS\midas-scripts\oral-cancer\image-compression\compressed"
 
-logging.info(f"Starting processing for input folder: {input_folder}")
-try:
-    process_images_in_structure(input_folder, output_folder, new_width=700, new_height=700, quality=100)
-except Exception as e:
-    logging.error(f"Unexpected error during processing: {str(e)}")
-logging.info(f"Finished processing for input folder: {input_folder}")
-
+    logger.info(f"Starting processing for input folder: {input_folder}")
+    try:
+        process_images_in_structure(input_folder, output_folder, new_width=700, new_height=700, quality=100)
+    except Exception as e:
+        logger.error(f"Unexpected error during processing: {str(e)}")
+    logger.info(f"Finished processing for input folder: {input_folder}")
