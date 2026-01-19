@@ -8,7 +8,7 @@ from datetime import datetime
 # =========================
 # CONFIGURATION
 # =========================
-pacs_upload_url = "https://staging.meningioma.midaspacs.in/dcm4chee-arc/aets/DCM4CHEE/rs/studies"
+pacs_upload_url = "https://{HOST}/dcm4chee-arc/aets/DCM4CHEE/rs/studies"
 main_folder_path = "***/path/to/input/dicom/folder***"
 
 # Logging setup
@@ -31,7 +31,7 @@ if not logger.handlers:
 
 def get_pacs_access_token():
     # Define the token URL and parameters
-    pacs_token_url = "https://staging.meningioma.midaspacs.in/auth/realms/midas/protocol/openid-connect/token"
+    pacs_token_url = "https://{HOST}/auth/realms/midas/protocol/openid-connect/token"
     client_id = "***CLIENT_ID***"
     client_secret = "***CLIENT_SECRET***"
     grant_type = "client_credentials"
