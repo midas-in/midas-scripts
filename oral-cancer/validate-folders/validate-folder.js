@@ -37,7 +37,7 @@ function logError(errors, message) {
 function validateLeafFolderContainsImages(
   folderPath,
   errors,
-  allowedExtensions
+  allowedExtensions,
 ) {
   const files = fs.readdirSync(folderPath).filter((f) => !f.startsWith("."));
   for (const file of files) {
@@ -71,7 +71,7 @@ function validateGMSubfolder(basePath, label, errors) {
     if (!fs.statSync(sitePath).isDirectory()) {
       logError(
         errors,
-        `❌ Unexpected file "${site}" found inside "${label}" folder`
+        `❌ Unexpected file "${site}" found inside "${label}" folder`,
       );
       valid = false;
       continue;
@@ -111,7 +111,7 @@ function validateGMSubfolder(basePath, label, errors) {
       if (!/^[0-9]+(\.[0-9]+)?x$/.test(mag)) {
         logError(
           errors,
-          `❌ Invalid magnification folder "${mag}" in ${label}/${site}`
+          `❌ Invalid magnification folder "${mag}" in ${label}/${site}`,
         );
         valid = false;
         continue;
@@ -148,7 +148,7 @@ function validateSpecialSubfolder(basePath, label, errors) {
     if (!fs.statSync(sitePath).isDirectory()) {
       logError(
         errors,
-        `❌ Unexpected file "${mag}" found inside "${label}" folder`
+        `❌ Unexpected file "${mag}" found inside "${label}" folder`,
       );
       valid = false;
       continue;
@@ -181,7 +181,7 @@ function validateSpecialSubfolder(basePath, label, errors) {
       if (!/^[0-9]+x$/.test(mag)) {
         logError(
           errors,
-          `❌ Invalid magnification folder "${mag}" in ${label}/${mag}`
+          `❌ Invalid magnification folder "${mag}" in ${label}/${mag}`,
         );
         valid = false;
         continue;
@@ -222,7 +222,7 @@ function validateGM(gmPath, errors) {
     if (!allowedTopLevel.includes(entry)) {
       logError(
         errors,
-        `❌ Unexpected entry "${entry}" in GM. Only HISTOPATH or CYTOLOGY are allowed.`
+        `❌ Unexpected entry "${entry}" in GM. Only HISTOPATH or CYTOLOGY are allowed.`,
       );
       valid = false;
     } else if (!fs.statSync(fullPath).isDirectory()) {
@@ -265,13 +265,13 @@ function validateSM(smPath, errors) {
     if (!allowedFolders.includes(entry)) {
       logError(
         errors,
-        `❌ Invalid folder "${entry}" found in SM. Only HISTOPATH and CYTOLOGY are allowed.`
+        `❌ Invalid folder "${entry}" found in SM. Only HISTOPATH and CYTOLOGY are allowed.`,
       );
       valid = false;
     } else if (!stat.isDirectory()) {
       logError(
         errors,
-        `❌ Unexpected file "${entry}" found in SM. Only folders allowed.`
+        `❌ Unexpected file "${entry}" found in SM. Only folders allowed.`,
       );
       valid = false;
     }
@@ -298,7 +298,7 @@ function validateSM(smPath, errors) {
       if (!stat.isDirectory()) {
         logError(
           errors,
-          `❌ File "${sub}" found directly in CYTOLOGY — only folders allowed`
+          `❌ File "${sub}" found directly in CYTOLOGY — only folders allowed`,
         );
         valid = false;
         continue;
@@ -313,7 +313,7 @@ function validateSM(smPath, errors) {
       const isValid = validateLeafFolderContainsImages(
         subPath,
         errors,
-        NDPI_ONLY
+        NDPI_ONLY,
       );
       valid = valid && isValid;
     }
@@ -331,7 +331,7 @@ function validateSM(smPath, errors) {
       if (!stat.isDirectory()) {
         logError(
           errors,
-          `❌ File "${sub}" found directly in HISTOPATH — only folders allowed`
+          `❌ File "${sub}" found directly in HISTOPATH — only folders allowed`,
         );
         valid = false;
         continue;
@@ -346,7 +346,7 @@ function validateSM(smPath, errors) {
       const isValid = validateLeafFolderContainsImages(
         subPath,
         errors,
-        NDPI_ONLY
+        NDPI_ONLY,
       );
       valid = valid && isValid;
     }
@@ -514,7 +514,7 @@ function validateMouth(mouthPath, errors) {
     if (!fs.statSync(fullPath).isDirectory()) {
       logError(
         errors,
-        `❌ Unexpected file "${entry}" found inside Body site folder`
+        `❌ Unexpected file "${entry}" found inside Body site folder`,
       );
       valid = false;
       continue;
@@ -547,7 +547,7 @@ function validateMouth(mouthPath, errors) {
       default:
         logError(
           errors,
-          `⚠️ No validator function defined for modality "${entry}"`
+          `⚠️ No validator function defined for modality "${entry}"`,
         );
         valid = false;
         break;
@@ -574,7 +574,7 @@ function validateVisit(visitPath, caseName, visitName) {
     if (!isDir) {
       logError(
         errors,
-        `❌ Unexpected file "${folder}" found inside visit folder.`
+        `❌ Unexpected file "${folder}" found inside visit folder.`,
       );
       valid = false;
       continue;
@@ -584,7 +584,7 @@ function validateVisit(visitPath, caseName, visitName) {
     if (!allowedBodySiteCodes.has(folder)) {
       logError(
         errors,
-        `❌ Unknown body site folder "${folder}" in visit "${visitName}".`
+        `❌ Unknown body site folder "${folder}" in visit "${visitName}".`,
       );
       valid = false;
       continue;
@@ -596,7 +596,7 @@ function validateVisit(visitPath, caseName, visitName) {
       .filter((name) => !name.startsWith("."));
     if (subEntries.length === 0) {
       console.warn(
-        `⚠️ Body site folder "${folder}" in visit "${visitName}" for "${caseName}" is empty. Skipping.`
+        `⚠️ Body site folder "${folder}" in visit "${visitName}" for "${caseName}" is empty. Skipping.`,
       );
       continue;
     }
@@ -636,14 +636,14 @@ function validateCase(casePath, caseName) {
     // ❌ Rule 1: No files allowed
     if (!isDir) {
       throw new Error(
-        `❌ File "${item}" found inside case "${caseName}". Only folders are allowed.`
+        `❌ File "${item}" found inside case "${caseName}". Only folders are allowed.`,
       );
     }
 
     // ❌ Rule 2: Folder must start with VISIT_
     if (!item.startsWith("VISIT_")) {
       throw new Error(
-        `❌ Invalid folder "${item}" inside case "${caseName}". Only folders starting with 'VISIT_' are allowed.`
+        `❌ Invalid folder "${item}" inside case "${caseName}". Only folders starting with 'VISIT_' are allowed.`,
       );
     }
 
@@ -652,7 +652,7 @@ function validateCase(casePath, caseName) {
     const dateRegex = /^(0[1-9]|[12][0-9]|3[01])-(0[1-9]|1[012])-\d{4}$/;
     if (!dateRegex.test(visitDate)) {
       throw new Error(
-        `❌ Visit folder "${item}" inside case "${caseName}" has invalid date format. Expected 'VISIT_DD-MM-YYYY'.`
+        `❌ Visit folder "${item}" inside case "${caseName}" has invalid date format. Expected 'VISIT_DD-MM-YYYY'.`,
       );
     }
 
@@ -662,7 +662,7 @@ function validateCase(casePath, caseName) {
       .filter((name) => !name.startsWith("."));
     if (visitContents.length === 0) {
       console.warn(
-        `⚠️ Visit folder "${item}" inside case "${caseName}" is empty. Skipping further validation.`
+        `⚠️ Visit folder "${item}" inside case "${caseName}" is empty. Skipping further validation.`,
       );
       continue;
     }
@@ -689,7 +689,7 @@ function validateRoot(rootPath) {
     // If the entry is NOT a directory, it's an invalid item
     if (!fs.statSync(entryPath).isDirectory()) {
       throw new Error(
-        `❌ Invalid file "${entry}" found in root directory. Only folders with caseId are allowed like 'case_01', 'case_02'.`
+        `❌ Invalid file "${entry}" found in root directory. Only folders with caseId are allowed like 'case_01', 'case_02'.`,
       );
     }
 
@@ -709,9 +709,7 @@ function validateRoot(rootPath) {
 }
 
 // 🔁 Replace this with your actual extracted path
-const ROOT_DIR = path.resolve(
-  "/Users/triveous/Dev/Scripts/conversions/dummy-data"
-);
+const ROOT_DIR = path.resolve("root directory path");
 
 // Run the validation
 validateRoot(ROOT_DIR);
@@ -746,9 +744,9 @@ ${Object.entries(results.details)
           ? `<ul>${errors.map((e) => `<li>${e}</li>`).join("")}</ul>`
           : ""
       }
-    </div>`
+    </div>`,
         )
-        .join("")
+        .join(""),
   )
   .join("")}
 </body></html>
@@ -757,5 +755,5 @@ fs.writeFileSync("validation-report.html", html);
 
 // Done
 console.log(
-  "✅ Validation complete. Reports generated:\n- validation-report.json\n- validation-report.html"
+  "✅ Validation complete. Reports generated:\n- validation-report.json\n- validation-report.html",
 );
