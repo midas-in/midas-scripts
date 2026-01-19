@@ -1,123 +1,175 @@
-from PIL import Image
 import os
-import shutil
-import logging
+import csv
+from datetime import datetime
+from PIL import Image
 
-# =========================
-# Logging setup
-# =========================
-log_file_path = r"F:\MIDAS SCRIPTS\midas-scripts\oral-cancer\image-compression\logs\logs.txt"
+# ==========================================
+# CONFIGURATION
+# ==========================================
+INPUT_FOLDER = r"input_folder_path"
+OUTPUT_FOLDER = r"output_folder_path"
+COMPRESSION_QUALITY = 65 
 
-logger = logging.getLogger("image_compression")
-logger.setLevel(logging.DEBUG)  # capture everything
+# ==========================================
+# LOGGING SETUP
+# ==========================================
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+log_txt_filename = f"compress_process_log_{timestamp}.txt"
+report_csv_filename = f"compress_report_{timestamp}.csv"
 
-if not logger.handlers:
-    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
-    fh = logging.FileHandler(log_file_path, mode="w", encoding="utf-8")
-    fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
-
-def resize_image_fixed_dimensions(input_path, output_path, new_width, new_height, quality=90):
+def log(message, print_to_console=True):
+    """
+    Helper function to print to console AND write to text file immediately.
+    """
+    if print_to_console:
+        print(message)
+    
     try:
-        with Image.open(input_path) as img:
-            original_width, original_height = img.size
-            aspect_ratio = original_width / original_height
-
-            if original_width > original_height:
-                resized_width = new_width
-                resized_height = int(resized_width / aspect_ratio)
-            else:
-                resized_height = new_height
-                resized_width = int(resized_height * aspect_ratio)
-
-            img = img.resize((resized_width, resized_height), Image.Resampling.LANCZOS)
-
-            ext = input_path.lower().split('.')[-1]
-            if ext in ['jpg', 'jpeg', 'png']:
-                if img.mode in ('RGBA', 'LA'):
-                    img = img.convert("RGB")
-                img.save(output_path, format='JPEG', quality=quality, optimize=True)
-            elif ext in ['tif', 'tiff']:
-                img.save(output_path, format='TIFF', compression="tiff_adobe_deflate")
-
-            logger.info(f"Processed {input_path} -> {output_path} ({resized_width}x{resized_height})")
-
+        with open(log_txt_filename, "a", encoding="utf-8") as f:
+            f.write(message + "\n")
     except Exception as e:
-        logger.error(f"Error processing {input_path}: {str(e)}")
+        print(f"CRITICAL ERROR: Could not write to log file: {e}")
 
+# ==========================================
+# MAIN LOGIC
+# ==========================================
+def compress_images_robust(source_root, dest_root, quality=60):
+    
+    valid_extensions = ('.jpg', '.jpeg', '.JPG', '.JPEG')
+    
+    log(f"--- STARTING ROBUST COMPRESSION JOB ---")
+    log(f"Time: {datetime.now()}")
+    log(f"Source: {source_root}")
+    log(f"Destination: {dest_root}")
+    log("-" * 60)
 
-def is_under_folder(path, target_folder_names):
-    return any(folder in os.path.normpath(path).split(os.sep) for folder in target_folder_names)
+    # Global counters for final summary
+    global_stats = {
+        'files': 0,
+        'compressed': 0,
+        'skipped': 0,
+        'errors': 0
+    }
 
+    # --- OPEN CSV FILE *BEFORE* THE LOOP ---
+    try:
+        csv_file = open(report_csv_filename, 'w', newline='', encoding='utf-8')
+        fieldnames = ['Folder Path', 'Total Input', 'Compressed', 'Skipped', 'Errors', 'Details']
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer.writeheader()
+    except Exception as e:
+        log(f"FATAL ERROR: Cannot create CSV file: {e}")
+        return
 
-def process_images_in_structure(input_folder, output_folder, new_width, new_height, quality=90):
-    for root, dirs, files in os.walk(input_folder):
-        relative_path = os.path.relpath(root, input_folder)
-        output_dir = os.path.join(output_folder, relative_path)
+    log(f"Scanning folders and streaming results to CSV...")
 
+    # Walk through every folder
+    for root, dirs, files in os.walk(source_root):
+        
+        # Skip empty folders to keep report clean
+        if not files:
+            continue
+
+        # --- PER FOLDER STATS ---
+        folder_stats = {
+            'folder': root,
+            'total_files': len(files),
+            'compressed': 0,
+            'skipped': 0,
+            'errors': 0,
+            'details': [] 
+        }
+
+        # Calculate destination folder path
+        relative_path = os.path.relpath(root, source_root)
+        output_folder = os.path.join(dest_root, relative_path)
+
+        # Create output folder
+        if not os.path.exists(output_folder):
+            try:
+                os.makedirs(output_folder)
+            except Exception as e:
+                log(f"❌ Error creating folder {output_folder}: {e}")
+                # If we can't create the folder, we fail all files in it
+                folder_stats['errors'] = len(files)
+                folder_stats['details'].append(f"Could not create directory: {e}")
+                writer.writerow({
+                    'Folder Path': root,
+                    'Total Input': len(files),
+                    'Compressed': 0,
+                    'Skipped': 0,
+                    'Errors': len(files),
+                    'Details': str(e)
+                })
+                continue
+
+        # Process files in this folder
+        for filename in files:
+            input_path = os.path.join(root, filename)
+            output_path = os.path.join(output_folder, filename)
+            
+            # Check extension
+            if not filename.lower().endswith(valid_extensions):
+                folder_stats['skipped'] += 1
+                # Optional: Uncomment if you want to see every non-jpg in the log
+                # folder_stats['details'].append(f"[SKIPPED] {filename}") 
+                continue
+
+            try:
+                with Image.open(input_path) as img:
+                    # Handle Mode (RGBA/P -> RGB) to prevent crashes on PNGs renamed as JPGs
+                    if img.mode in ("RGBA", "P", "CMYK"):
+                        img = img.convert("RGB")
+
+                    # Compress and Save
+                    img.save(output_path, "JPEG", optimize=True, quality=quality)
+                    
+                    folder_stats['compressed'] += 1
+
+            except Exception as e:
+                folder_stats['errors'] += 1
+                error_msg = f"[ERROR] {filename}: {str(e)}"
+                folder_stats['details'].append(error_msg)
+                log(f"  ❌ {error_msg}") # Print errors to console immediately
+
+        # --- UPDATE GLOBALS ---
+        global_stats['files'] += folder_stats['total_files']
+        global_stats['compressed'] += folder_stats['compressed']
+        global_stats['skipped'] += folder_stats['skipped']
+        global_stats['errors'] += folder_stats['errors']
+
+        # --- WRITE ROW TO CSV IMMEDIATELY ---
         try:
-            if is_under_folder(root, ['GM', 'XC']):
-                logger.info(f"Compressing images in folder: {root}")
-                os.makedirs(output_dir, exist_ok=True)
-
-                image_files = [f for f in files if f.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff'))]
-                logger.info(f"Found {len(image_files)} images to compress in {root}")
-
-                compressed_count = 0
-                for file_name in image_files:
-                    input_path = os.path.join(root, file_name)
-                    ext = file_name.lower().split('.')[-1]
-                    new_ext = 'jpg' if ext in ['jpg', 'jpeg', 'png'] else 'tif'
-                    output_file_name = os.path.splitext(file_name)[0] + f".{new_ext}"
-                    output_path = os.path.join(output_dir, output_file_name)
-
-                    logger.info(f"Processing image: {input_path}")
-                    resize_image_fixed_dimensions(input_path, output_path, new_width, new_height, quality)
-
-                    if os.path.exists(output_path):
-                        compressed_count += 1
-                    else:
-                        logger.error(f"Failed to create compressed file: {output_path}")
-
-                logger.info(f"Compressed {compressed_count} images out of {len(image_files)} in {root}")
-
-            else:
-                logger.info(f"Copying folder: {root} to {output_dir}")
-                if os.path.exists(output_dir):
-                    shutil.rmtree(output_dir)
-                shutil.copytree(root, output_dir, dirs_exist_ok=True)
-
-                copied_files = []
-                for dirpath, _, filenames in os.walk(output_dir):
-                    for fname in filenames:
-                        full_path = os.path.join(dirpath, fname)
-                        copied_files.append(os.path.relpath(full_path, output_dir))
-
-                original_files = []
-                for dirpath, _, filenames in os.walk(root):
-                    for fname in filenames:
-                        original_files.append(os.path.relpath(os.path.join(dirpath, fname), root))
-
-                missing_files = set(original_files) - set(copied_files)
-                if missing_files:
-                    logger.error(f"Missing copied files in {output_dir}: {missing_files}")
-                else:
-                    logger.info(f"Successfully copied all {len(original_files)} files to {output_dir}")
-
+            writer.writerow({
+                'Folder Path': folder_stats['folder'],
+                'Total Input': folder_stats['total_files'],
+                'Compressed': folder_stats['compressed'],
+                'Skipped': folder_stats['skipped'],
+                'Errors': folder_stats['errors'],
+                'Details': " | ".join(folder_stats['details'])
+            })
+            # Force write to disk to prevent data loss on crash
+            csv_file.flush() 
         except Exception as e:
-            logger.error(f"Error processing folder {root}: {str(e)}")
+            log(f"Error writing row to CSV: {e}")
 
+        # --- LOG PROGRESS ---
+        # Only log to console if something interesting happened (compression or error)
+        # to avoid spamming the console for 10,000 folders
+        if folder_stats['compressed'] > 0 or folder_stats['errors'] > 0:
+            log(f"Processed: .../{relative_path} | Compressed: {folder_stats['compressed']} | Errors: {folder_stats['errors']}", print_to_console=True)
+
+    # --- CLEANUP ---
+    csv_file.close()
+
+    # --- FINAL SUMMARY ---
+    log(f"\n--- JOB COMPLETED ---")
+    log(f"Total Files Found:     {global_stats['files']}")
+    log(f"Successfully Compressed: {global_stats['compressed']}")
+    log(f"Total Skipped:         {global_stats['skipped']} (Non-JPGs)")
+    log(f"Total Errors:          {global_stats['errors']}")
+    log(f"Log saved to: {os.path.abspath(log_txt_filename)}")
+    log(f"CSV Report:   {os.path.abspath(report_csv_filename)}")
 
 if __name__ == "__main__":
-    input_folder = r"D:\MIDAS PROSPECTIVE\batch\batch1"
-    output_folder = r"F:\MIDAS SCRIPTS\midas-scripts\oral-cancer\image-compression\compressed"
-
-    logger.info(f"Starting processing for input folder: {input_folder}")
-    try:
-        process_images_in_structure(input_folder, output_folder, new_width=700, new_height=700, quality=100)
-    except Exception as e:
-        logger.error(f"Unexpected error during processing: {str(e)}")
-    logger.info(f"Finished processing for input folder: {input_folder}")
+    compress_images_robust(INPUT_FOLDER, OUTPUT_FOLDER, quality=COMPRESSION_QUALITY)

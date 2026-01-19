@@ -17,12 +17,12 @@ warnings.filterwarnings("ignore", message="The value length .* exceeds the maxim
 
 
 # Define paths
-input_base_path = "/Users/triveous/Dev/Scripts/image-compression/output"
-output_base_path = "/Users/triveous/Dev/midas-scripts/oral-cancer/image-conversion/final_dataset"
+input_base_path = "input path"
+output_base_path = "output path"
 
 # Scripts
-jpeg_to_dicom_script = "/Users/triveous/Dev/midas-scripts/oral-cancer/image-conversion/image.py"
-microscope_jpeg_to_dicom_script = "/Users/triveous/Dev/midas-scripts/oral-cancer/image-conversion/microscope.py"
+jpeg_to_dicom_script = "jpeg to dicom script path"
+microscope_jpeg_to_dicom_script = "microscope jpeg to dicom script path"
 
 # Expand the ValueSet from HL7 v2-0550
 url = "https://tx.fhir.org/r4/ValueSet/$expand"
