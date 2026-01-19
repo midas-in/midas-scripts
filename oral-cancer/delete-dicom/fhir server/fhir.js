@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 // Configuration
-const fhirBaseUrl = "https://pgichn.meningioma.midaspacs.in/fhir";
+const fhirBaseUrl = "https://{HOST}/fhir";
 
 // Log files
 const logDir = path.join(__dirname, "fhir_logs");
@@ -29,7 +29,7 @@ async function deleteImagingStudy(imagingStudyId) {
 
     appendLog(
       summaryLogFile,
-      `Successfully deleted ImagingStudy ${imagingStudyId}.`
+      `Successfully deleted ImagingStudy ${imagingStudyId}.`,
     );
     console.log(`Deleted ImagingStudy ${imagingStudyId}`);
     return true;
@@ -38,10 +38,10 @@ async function deleteImagingStudy(imagingStudyId) {
       errorLogFile,
       `Failed to delete ImagingStudy ${imagingStudyId}: ${
         error.response?.status || ""
-      } - ${error.message}`
+      } - ${error.message}`,
     );
     console.error(
-      `Failed to delete ImagingStudy ${imagingStudyId}: ${error.message}`
+      `Failed to delete ImagingStudy ${imagingStudyId}: ${error.message}`,
     );
     return false;
   }
@@ -71,7 +71,7 @@ async function main() {
 
     appendLog(
       summaryLogFile,
-      `Total ImagingStudies to delete: ${imagingStudyIds.length}`
+      `Total ImagingStudies to delete: ${imagingStudyIds.length}`,
     );
     appendLog(summaryLogFile, `Successfully deleted: ${deletedCount}`);
     appendLog(summaryLogFile, `Failed deletions: ${failedCount}`);
