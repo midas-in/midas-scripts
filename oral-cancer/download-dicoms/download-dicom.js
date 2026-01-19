@@ -3,17 +3,16 @@ const fs = require("fs");
 const path = require("path");
 const unzipper = require("unzipper");
 
-const OUTPUT_DIR = "/Users/triveous/Dev/Scripts/Download-dicoms/files";
+const OUTPUT_DIR = "<output directory path>";
 
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
 // Configure your dcm4chee-arc-light server details
-const PACS_API = "https://hub.midashealth.in/dcm4chee-arc/aets/DCM4CHEE/rs";
+const PACS_API = "https://{HOST}/dcm4chee-arc/aets/DCM4CHEE/rs";
 
-const BEARER_TOKEN =
-  "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJEQkV2c1czN2tvTTh5aFhjRTJnX3ZnWUlaNzA3ZDlMMEJHRGRMSmlrVEtJIn0.eyJleHAiOjE3NjE1OTM2NDIsImlhdCI6MTc2MTU1NzY0MiwianRpIjoiNzk1NzJmZjctNGE0Yy00ZmVhLTk2MjktZjRkYzQ5MmE1NDY2IiwiaXNzIjoiaHR0cHM6Ly9odWIubWlkYXNoZWFsdGguaW4vYXV0aC9yZWFsbXMvbWlkYXMiLCJhdWQiOlsicmVhbG0tbWFuYWdlbWVudCIsImFjY291bnQiXSwic3ViIjoiM2UyODNhOTctZmM5OS00Nzk3LWI4MWYtYTZkYTAzZmY4ODhmIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiYXV0aC1hcGlzIiwic2Vzc2lvbl9zdGF0ZSI6IjhhMTkzYzQ4LTlhMzYtNDU1YS1hYzY2LWM3Nzc4N2VjM2FiYiIsImFjciI6IjEiLCJhbGxvd2VkLW9yaWdpbnMiOlsiLyoiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbInB1YmxpY2F0aW9uc19hY2Nlc3NfcmVhZCIsInVzZXJfcm9sZV9hY2Nlc3NfY3JlYXRlIiwicHVibGljYXRpb25zX2FjY2Vzc19jcmVhdGUiLCJhc3NpZ25fYWNjZXNzX3JlYWQiLCJ1c2VyX21hbmFnZW1lbnRfYWNjZXNzX3VwZGF0ZSIsInBhY3NfcmVhZCIsInVzZXJfbWFuYWdlbWVudF9hY2Nlc3NfcmVhZCIsImRlZmF1bHQtcm9sZXMtbWlkYXMiLCJhcGlfa2V5X2FjY2Vzc191cGRhdGUiLCJvZmZsaW5lX2FjY2VzcyIsInB1YmxpY2F0aW9uc19hY2Nlc3NfdXBkYXRlIiwiYXNzaWduX2FjY2Vzc191cGRhdGUiLCJ1bWFfYXV0aG9yaXphdGlvbiIsInJlcXVlc3RfYWNjZXNzX2NyZWF0ZSIsInJlcXVlc3RfYWNjZXNzX3VwZGF0ZSIsImd1aWRlbGluZXNfYWNjZXNzX3JlYWQiLCJwdWJsaXNoX2FjY2Vzc19yZWFkIiwiYXBpX2tleV9hY2Nlc3NfY3JlYXRlIiwibG9nc19hY2Nlc3NfcmVhZCIsInJlcXVlc3RfYWNjZXNzX3JlYWQiLCJ1c2VyX3JvbGVfYWNjZXNzX3JlYWQiLCJwYWNzX3dyaXRlIiwidXNlcl9yb2xlX2FjY2Vzc191cGRhdGUiLCJwdWJsaXNoX2FjY2Vzc191cGRhdGUiLCJkYXNoYm9hcmRfYWNjZXNzX3JlYWQiLCJhcGlfa2V5X2FjY2Vzc19yZWFkIiwidXNlcl9tYW5hZ2VtZW50X2FjY2Vzc19jcmVhdGUiLCJyb2xlLWFkbWluIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsicmVhbG0tbWFuYWdlbWVudCI6eyJyb2xlcyI6WyJ2aWV3LXJlYWxtIiwidmlldy1pZGVudGl0eS1wcm92aWRlcnMiLCJtYW5hZ2UtaWRlbnRpdHktcHJvdmlkZXJzIiwiaW1wZXJzb25hdGlvbiIsInJlYWxtLWFkbWluIiwiY3JlYXRlLWNsaWVudCIsIm1hbmFnZS11c2VycyIsInF1ZXJ5LXJlYWxtcyIsInZpZXctYXV0aG9yaXphdGlvbiIsInF1ZXJ5LWNsaWVudHMiLCJxdWVyeS11c2VycyIsIm1hbmFnZS1ldmVudHMiLCJtYW5hZ2UtcmVhbG0iLCJ2aWV3LWV2ZW50cyIsInZpZXctdXNlcnMiLCJ2aWV3LWNsaWVudHMiLCJtYW5hZ2UtYXV0aG9yaXphdGlvbiIsIm1hbmFnZS1jbGllbnRzIiwicXVlcnktZ3JvdXBzIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJzaWQiOiI4YTE5M2M0OC05YTM2LTQ1NWEtYWM2Ni1jNzc3ODdlYzNhYmIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmFtZSI6Imh1YiBhZG1pbiIsInByZWZlcnJlZF91c2VybmFtZSI6ImFkbWluIiwiZ2l2ZW5fbmFtZSI6Imh1YiIsImZhbWlseV9uYW1lIjoiYWRtaW4iLCJlbWFpbCI6InN1cmFqZG9uZ3JlQHRyaXZlb3VzLmNvbSJ9.WF8y6Kfy-SpiXH4BI-d60gTuNutFjDU-TMxi8oW_Ve5EqjLZQAX_Mqa5shqm_zu2Dy-q7ogK4NWL3BPqWaDJkn75AzF4e8qK6kKTF_9ro9WDaLz_K057cuHkLE8yXeEc3ASodPgdovw2wdHZ1x2Q200tX80qzTc7e4-D2Nxg4wq3nvnY9e5OGhC1M9vL3aPrcfrbP5x6d6H0pN8aRMfJqjWaAJ-8YfNU4b9PHrI18zHOJGtrsYnLT8TZWQ0CSW7gz9I95vhPotFtTAKKxwb2vGhlVWzDgwM1_OfwX8H7l0HgChIqiwzV84liuFxttFKjSdUNe0uQPRQ3MVyE7wIb2Q";
+const BEARER_TOKEN = "TOKEN";
 // Create an Axios instance with default headers (optional but recommended)
 const apiClient = axios.create({
   headers: {
@@ -37,7 +36,7 @@ async function fetchAllStudies() {
   } catch (error) {
     console.error(
       "Error fetching studies:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return [];
   }
@@ -54,7 +53,7 @@ async function getLatestSeries(studyUID) {
           orderby: "SeriesNumber",
           includefield: "all",
         },
-      }
+      },
     );
 
     if (response.data.length === 0) {
@@ -66,7 +65,7 @@ async function getLatestSeries(studyUID) {
   } catch (error) {
     console.error(
       "Error fetching series:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return null;
   }
@@ -78,7 +77,7 @@ async function downloadSeries(
   outputDir,
   patientID,
   studyDesc,
-  modalityString
+  modalityString,
 ) {
   const url = `${PACS_API}/studies/${studyUID}/series/${seriesUID}`;
   const seriesDir = path.join(outputDir, patientID, modalityString, studyDesc);
@@ -89,7 +88,7 @@ async function downloadSeries(
 
   const tempZipPath = path.join(
     outputDir,
-    `${patientID}_${modalityString}_${studyDesc}.zip`
+    `${patientID}_${modalityString}_${studyDesc}.zip`,
   );
 
   try {
@@ -124,7 +123,7 @@ async function downloadSeries(
   } catch (error) {
     console.error(
       `Error downloading or extracting series ${seriesUID}:`,
-      error.message
+      error.message,
     );
   }
 }
@@ -184,7 +183,7 @@ async function main() {
         OUTPUT_DIR,
         patientID,
         studyDesc,
-        modalityString
+        modalityString,
       );
     }
 
@@ -192,7 +191,7 @@ async function main() {
   }
 
   console.log(
-    `\n✅ Processing complete. Total studies processed: ${processedCount}`
+    `\n✅ Processing complete. Total studies processed: ${processedCount}`,
   );
 }
 
