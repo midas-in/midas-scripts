@@ -108,8 +108,10 @@ These scripts are provided as-is. Review and test thoroughly before using them i
 
 ---
 
-## Maintainer
+## License
 
-**Suraj Dongre**
+[GNU GENERAL PUBLIC LICENSE](https://github.com/midas-in/midas-scripts/blob/main/LICENSE)
 
-For questions, issues, or improvements, please raise an issue or contact the maintainer.
+This repository contains a collection of utility and automation scripts written in **Python** and **Node.js**. These scripts are intended for development, data processing, automation, and operational support tasks.
+
+    Copyright (C) 2026 IISc/Artpark
