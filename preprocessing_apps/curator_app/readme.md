@@ -2,7 +2,7 @@ MIDAS Image Curation System
 
 Clinical Image Archival Application for Hospital Curators
 
-A desktop GUI tool designed to organise, rename, archive, and document clinical images into the standardized MIDAS folder structure with automatic metadata logging.
+A desktop GUI tool designed to organise, rename, archive, and document medical images into the standardized MIDAS folder structure with automatic metadata logging.
 
 Built using PyQt6 for hospital-grade workflow efficiency.
 
