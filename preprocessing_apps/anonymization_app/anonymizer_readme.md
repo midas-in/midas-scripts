@@ -81,7 +81,7 @@ This will:
 ## 4. Pre-download docTR model (optional but recommended)
 
 ```
-python -c "from doctr.models import ocr_predictor; ocr_predictor(pretrained=True); print('Model ready.')"
+pip install python-doctr
 ```
 
 Model cache:
