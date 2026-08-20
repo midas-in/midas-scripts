@@ -5,11 +5,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import pydicom
-from pydicom.dataset import FileDataset, FileMetaDataset
+from pydicom.dataset import FileDataset, FileMetaDataset, Dataset
+from pydicom.sequence import Sequence
 from pydicom.uid import UID, generate_uid, SecondaryCaptureImageStorage
 import tempfile
 import subprocess
-
+import io
 # ==========================================
 # CONFIGURATION
 # ==========================================
@@ -71,13 +72,23 @@ def extract_metadata_from_structure(folder_path):
 # DICOM UTILS
 # ==========================================
 def calculate_meta_information_group_length(ds):
+    """
+    Calculate the length of all group 0002 elements using Memory Buffer (RAM).
+    Fixes Windows [Errno 13] Permission Denied errors.
+    """
     temp_meta = ds.file_meta.copy()
     if 'FileMetaInformationGroupLength' in temp_meta:
         del temp_meta['FileMetaInformationGroupLength']
+    
+    # Create a dummy dataset
     meta_ds = FileDataset(None, {}, file_meta=temp_meta, preamble=b"\0" * 128)
-    with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-        meta_ds.save_as(temp_file.name)
-        meta_length = os.path.getsize(temp_file.name) - 132 
+    
+    # Write to RAM (BytesIO) instead of Disk
+    with io.BytesIO() as buffer:
+        meta_ds.save_as(buffer)
+        # Calculate size: Total buffer size minus preamble (128) and DICM prefix (4)
+        meta_length = buffer.tell() - 132 
+        
     return meta_length
 
 def validate_dicom_file(dicom_file_path):
@@ -166,6 +177,31 @@ def create_dicom_from_jpg(jpg_path, dcm_path, metadata):
     ds.BitsStored = 8
     ds.HighBit = 7
     ds.PixelRepresentation = 0
+    
+    ds.StationName = "<Institution Name>"
+    ds.InstitutionName = "<Institution Name>"
+
+    # Institution Code Sequence (as a sequence)
+    inst_code = Dataset()
+    inst_code.CodeValue = "<Institution Name>"
+    inst_code.CodingSchemeDesignator = "99LOCAL"
+    inst_code.CodeMeaning = "Dental Institute, Rajendra Institute of Medical Sciences, Ranchi"
+    ds.InstitutionCodeSequence = Sequence([inst_code])
+
+    ds.IssuerOfPatientID = "<Institution Name>"
+    ds.ConsentForDistributionFlag = "YES"
+
+    # --- ROI Creator Sequence ---
+    roi_creator = Dataset()
+    roi_creator.PersonName = "annotator1"
+    roi_creator.InstitutionName = "<Institution Name>"
+    ds.ROICreatorSequence = Sequence([roi_creator])
+
+    # --- ROI Interpreter Sequence ---
+    roi_interpreter = Dataset()
+    roi_interpreter.PersonName = "reviewer1"
+    roi_interpreter.InstitutionName = "<Institution Name>"
+    ds.ROIInterpreterSequence = Sequence([roi_interpreter])
 
     # Meta Length Calc
     ds.file_meta.FileMetaInformationGroupLength = calculate_meta_information_group_length(ds) + 12
