@@ -1,0 +1,32 @@
+# Python & virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.build_venv/
+
+# PyInstaller & packaging outputs
+build/
+dist/
+*.dmg
+*.exe
+*.zip
+dmg_staging/
+
+# Local runtime state & OS metadata
+midas_tag_memory.json
+.DS_Store
+Thumbs.db
+
+# Medical imaging & clinical datasets (NEVER commit patient data)
+model_dataset/
+anonymized_*/
+*.dcm
+*.ndpi
+*.svs
+*.tif
+*.tiff
+*.jpg
+*.jpeg
+*.png
+!panel*.png

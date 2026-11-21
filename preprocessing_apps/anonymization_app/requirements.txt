@@ -1,0 +1,9 @@
+pyinstaller
+pydicom
+python-doctr[torch]
+opencv-python-headless
+numpy
+pillow
+openslide-python
+openslide-bin
+tkinterdnd2
